@@ -1,0 +1,10 @@
+producer:
+    css: 'div#bylineInfo_feature_div.celwidget div.a-section'
+    type: Text
+asin:
+    css: 'td.bucket div.content > ul'
+    type: Text
+rankings:
+    css: 'li#SalesRank'
+    type: Text
+

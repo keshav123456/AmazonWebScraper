@@ -1,134 +1,122 @@
-from bs4 import BeautifulSoup
-import re # import Regular expression operations module
+from selectorlib import Extractor
 import requests
-from time import gmtime, strftime
+import re
+
+# Create an Extractor by reading from the YAML file
+e1 = Extractor.from_yaml_file('searchConfig.yml')
+e2 = Extractor.from_yaml_file('pageConfig.yml')  # not needed yet
 
 a = []
 url_str = input("Enter the product category you want to search for: ")
 url = []
-
+limit = input("Enter the number of results you want to search for: ")
+limit = int(limit)
 # Hacky fix
 words = url_str.split()
 var = len(words)
 
 if var == 1:
-	url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0]
+    url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0]
 
 if var == 2:
-	url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[1]
+    url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[1]
 
 elif var == 3:
-	url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[1] + "+" + words[2]
+    url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[
+        1] + "+" + words[2]
+
+print(url)
 
 # Add header
-headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36'}
+headers = {
+    'dnt': '1',
+    'upgrade-insecure-requests': '1',
+    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+    'sec-fetch-site': 'same-origin',
+    'sec-fetch-mode': 'navigate',
+    'sec-fetch-user': '?1',
+    'sec-fetch-dest': 'document',
+    'referer': 'https://www.amazon.com/',
+    'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+}
 
 r = requests.get(url, headers=headers)
 
-# print(r) # print request to see if Response 200
+x = e1.extract(r.text)
 
-soup = BeautifulSoup(r.content, "html.parser")
-
+seperator = ","
 # Csv writing setup
-filename = "products.csv"
+filename = url_str + ".csv"
 f = open(filename, "w", encoding='utf-8')
+csvheaders = "position, name, price, sponsored, number of reviews, rating, asin, rankings, producer, url \n"
+f.write(csvheaders)
 
-# Grab time and format string 
-strftime("%Y-%m-%d %H:%M:%S", gmtime())
+data = x
+if data:
+    counter = 0
+    sponsorCounter = 0
+    for product in data['products']:
+        while counter + sponsorCounter < limit:
+            product['search_url'] = url
+            print("Saving Product: %s" % product['title'])
+            if product['sponsored'] != None:
+                product['sponsored'] = "Yes"
+                sponsorCounter = sponsorCounter + 1
+                product['position'] = "sponsor : " + str(sponsorCounter)
+            else:
+                product['sponsored'] = "No"
+                counter = counter + 1
+                product['position'] = "normal : " + str(counter)
+            if product['rating'] != None:
+                product['rating'] = product['rating'].replace("out of 5 stars", "")
+            for (field, value) in product.items():
+                if product[field] == None:
+                    product[field] = ""
+                product[field] = product[field].replace(",", "")
+            # second round of information extraction based on product page
 
-headers ="Asin, Name," + "Price : " + strftime("%Y-%m-%d %H:%M:%S", gmtime()) + ", Number of Reviews\n"
-f.write(headers)
+            url2 = "https://www.amazon.com" + product['url']
+            product['url'] = url2
+            r2 = requests.get(url2, headers=headers)
+            y = e2.extract(r2.text)
+            if y:
+                for (field, value) in y.items():
+                    if value is not None:
+                        value = value.replace(",", "")
+                        if field == 'producer':
+                            value = value[2:len(value) - 1]
+                        if field == 'asin':
+                            index = value.find("ASIN")
+                            if index != -1:
+                                start = index + 6
+                                end = index + 18
+                                value = value[start:end]
+                            else:
+                                value = ""
+                        if field == "rankings":
+                            print(value)
+                            value = re.sub("[{].*?[}]", "", value)
+                            value = re.sub("[(].*?[)]", "", value)
+                            value = re.sub("\.zg_hrsr_item", "", value)
+                            value = re.sub("\.zg_hrsr_rank", "", value)
+                            value = re.sub("\.zg_hrsr", "", value)
+                            value = re.sub("Amazon Best Sellers Rank:", "", value)
+                            value = ' '.join(value.split())
+                            print(value)
+                        product[field] = value
+                    else:
+                        product[field] = ""
 
-# Regex if needed
-# a = re.compile((?<=data-asin))
-# Used this to beautify and inspect the html/xml data ----> http://jsbeautifier.org/
-
-
-# Style 1 of Amazon's product display
-containers1 = soup.findAll("li", {"class":"s-result-item s-result-card-for-container a-declarative celwidget "})
-print("containers style 1: ", len(containers1))
-
-#page could be styled different, invoke query second style
-containers2 = soup.findAll("li", {"class":"s-result-item s-result-card-for-container s-carded-grid celwidget "})
-print("containers style 2: ", len(containers2))
-
-#check for sponsored containers
-sponsored_containers = soup.findAll("li", {"class":"s-result-item celwidget AdHolder"}) 
-print("containers style 3 sponsored: ", len(sponsored_containers))
-
-#check for the most common style
-common_containers = soup.findAll("li", {"class":"s-result-item celwidget "})  
-print("containers style 4 common: ", len(common_containers))
-
-#check for special style
-containers3 = soup.findAll("li", {"class":"s-result-item s-col-span-12 celwidget "})
-print("containers style 5 special", len(containers3))
-
-
-
-for container in sponsored_containers:
-	# Product Asin
-	asin = (container["data-asin"])
-
-	# Product Name
-	try:
-		title_container = container.findAll("a", {"class":"a-link-normal s-access-detail-page s-color-twister-title-link a-text-normal"}) 
-		name = title_container[0]["title"]
-	except:
-		name = "N/A"
-
-	# Product Price # span class="a-offscreen"
-	price_container = container.findAll("span", {"class":"a-offscreen"})
-	price = price_container[1].text
-
-	#Number of reviews
-	num_review_container = container.findAll("a", {"class":"a-size-small a-link-normal a-text-normal"})
-	try:
-		if (len(num_review_container) > 1):
-			num_reviews = num_review_container[1].text
-		else: 
-			num_reviews = num_review_container[0].text 
-	except:
-		num_reviews = "0"
-
-	f.write(asin + ',' + name.replace(",", "|") + ',' + price.replace("$", "") + "," + num_reviews.replace(",", "") + "\n") # + ',' + name.replace(",", "|") + ',' + price + "," + num_reviews + "\n")
-
-
-for container in common_containers:
-	# Product Asin
-	asin = (container["data-asin"])
-
-	# Product Name
-	try:
-		title_container = container.findAll("a", {"class":"a-link-normal s-access-detail-page s-color-twister-title-link a-text-normal"}) 
-		name = title_container[0]["title"]
-	except:
-		name = "N/A"
-
-	# Product Price # span class="a-offscreen"
-	price_container = container.findAll("span", {"class":"a-offscreen"})
-	# print(price_container)
-	try:
-		price = price_container[0].text
-	except:
-		price = "N/A"
-
-	#Number of reviews
-	num_review_container = container.findAll("a", {"class":"a-size-small a-link-normal a-text-normal"})
-	try:
-		if (len(num_review_container) > 1):
-			num_reviews = num_review_container[1].text
-		else:
-			num_reviews = num_review_container[0].text
-	except:
-		num_reviews = "0"
-
-	#try:
-	#	num_review2 = num_review_container[1].text.strip()
-	#	print(num_review2)
-	# except list index out of range:
-	#	num_review2 = 0;
-
-	f.write(asin + ',' + name.replace(",", "|") + ',' + price.replace("$", "") + "," + num_reviews.replace(",", "") + "\n")
+            f.write(product['position'] + seperator +
+                    product['title'] + seperator +
+                    product['price'] + seperator +
+                    product['sponsored'] + seperator +
+                    product['reviews'] + seperator +
+                    product['rating'] + seperator +
+                    product['asin'] + seperator +
+                    product['rankings'] + seperator +
+                    product['producer'] + seperator +
+                    product['url'] + "\n")
 
 f.close()
