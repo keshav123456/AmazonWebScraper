@@ -1,7 +1,7 @@
 from selectorlib import Extractor
 import requests
 import re
-
+from time import sleep
 # Create an Extractor by reading from the YAML file
 e1 = Extractor.from_yaml_file('searchConfig.yml')
 e2 = Extractor.from_yaml_file('pageConfig.yml')  # not needed yet
@@ -24,8 +24,6 @@ if var == 2:
 elif var == 3:
     url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[
         1] + "+" + words[2]
-
-print(url)
 
 # Add header
 headers = {
@@ -57,9 +55,8 @@ if data:
     counter = 0
     sponsorCounter = 0
     for product in data['products']:
-        while counter + sponsorCounter < limit:
+        if counter + sponsorCounter < limit:
             product['search_url'] = url
-            print("Saving Product: %s" % product['title'])
             if product['sponsored'] != None:
                 product['sponsored'] = "Yes"
                 sponsorCounter = sponsorCounter + 1
@@ -95,7 +92,6 @@ if data:
                             else:
                                 value = ""
                         if field == "rankings":
-                            print(value)
                             value = re.sub("[{].*?[}]", "", value)
                             value = re.sub("[(].*?[)]", "", value)
                             value = re.sub("\.zg_hrsr_item", "", value)
@@ -103,7 +99,6 @@ if data:
                             value = re.sub("\.zg_hrsr", "", value)
                             value = re.sub("Amazon Best Sellers Rank:", "", value)
                             value = ' '.join(value.split())
-                            print(value)
                         product[field] = value
                     else:
                         product[field] = ""
