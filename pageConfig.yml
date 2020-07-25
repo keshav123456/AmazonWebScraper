@@ -1,10 +1,10 @@
 producer:
-    css: 'div#bylineInfo_feature_div.celwidget div.a-section'
+    css: 'div#bylineInfo_feature_div.feature div.a-section'
     type: Text
 asin:
-    css: 'td.bucket div.content > ul'
+    css: 'div.column.col2 div.section:nth-of-type(1)'
     type: Text
 rankings:
-    css: 'li#SalesRank'
+    css: 'tr#SalesRank td.value'
     type: Text
 

@@ -1,10 +1,13 @@
 from selectorlib import Extractor
 import requests
 import re
+from scraper_api import ScraperAPIClient
+client = ScraperAPIClient('2d89a521927f970e0da6706727596da1')
+
 from time import sleep
 # Create an Extractor by reading from the YAML file
 e1 = Extractor.from_yaml_file('searchConfig.yml')
-e2 = Extractor.from_yaml_file('pageConfig.yml')  # not needed yet
+e2 = Extractor.from_yaml_file('pageConfig.yml')
 
 a = []
 url_str = input("Enter the product category you want to search for: ")
@@ -16,13 +19,13 @@ words = url_str.split()
 var = len(words)
 
 if var == 1:
-    url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0]
+    url = "https://www.amazon.co.uk/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0]
 
 if var == 2:
-    url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[1]
+    url = "https://www.amazon.co.uk/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[1]
 
 elif var == 3:
-    url = "https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[
+    url = "https://www.amazon.co.uk/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=" + words[0] + "+" + words[
         1] + "+" + words[2]
 
 # Add header
@@ -35,13 +38,14 @@ headers = {
     'sec-fetch-mode': 'navigate',
     'sec-fetch-user': '?1',
     'sec-fetch-dest': 'document',
-    'referer': 'https://www.amazon.com/',
+    'referer': 'https://www.amazon.co.uk/',
     'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
 }
 
-r = requests.get(url, headers=headers)
+oldr = requests.get(url, headers=headers)
+# r = client.get(url=url)
 
-x = e1.extract(r.text)
+x = e1.extract(oldr.text)
 
 seperator = ","
 # Csv writing setup
@@ -73,10 +77,12 @@ if data:
                 product[field] = product[field].replace(",", "")
             # second round of information extraction based on product page
 
-            url2 = "https://www.amazon.com" + product['url']
+            url2 = "https://www.amazon.co.uk" + product['url']
             product['url'] = url2
-            r2 = requests.get(url2, headers=headers)
-            y = e2.extract(r2.text)
+            oldr2 = requests.get(url2, headers=headers)
+            # r2 = client.get(url=url2)
+            y = e2.extract(oldr2.text)
+            print(y)
             if y:
                 for (field, value) in y.items():
                     if value is not None:
@@ -86,8 +92,8 @@ if data:
                         if field == 'asin':
                             index = value.find("ASIN")
                             if index != -1:
-                                start = index + 6
-                                end = index + 18
+                                start = index + 5
+                                end = index + 16
                                 value = value[start:end]
                             else:
                                 value = ""
