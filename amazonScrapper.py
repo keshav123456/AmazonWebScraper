@@ -1,8 +1,8 @@
 from selectorlib import Extractor
 import requests
 import re
-from scraper_api import ScraperAPIClient
-client = ScraperAPIClient('2d89a521927f970e0da6706727596da1')
+# from scraper_api import ScraperAPIClient
+# client = ScraperAPIClient('2d89a521927f970e0da6706727596da1')
 
 from time import sleep
 # Create an Extractor by reading from the YAML file
