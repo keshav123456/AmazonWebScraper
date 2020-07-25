@@ -88,7 +88,7 @@ if data:
                     if value is not None:
                         value = value.replace(",", "")
                         if field == 'producer':
-                            value = value[2:len(value) - 1]
+                            value = value
                         if field == 'asin':
                             index = value.find("ASIN")
                             if index != -1:
